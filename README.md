@@ -1,124 +1,155 @@
-# KnowledgeBase-RAG-LLM-System
+# Knowledge Base System
 
- **基于 Streamlit 的本地知识库上传 + RAG 智能客服** 的简单复现项目：
-- 在网页端上传 `txt` 文件，自动切分并向量化写入 Chroma 向量库
-> 文档持久化  
-- 在网页端以聊天形式提问，通过 **RAG（检索增强生成）** 基于知识库内容进行回答
-> 模型prompt再生成注入  
-- 支持 **会话历史查看**，流式思维链输出
-> 实现长时记忆，模型可根据历史信息回答，再续前缘
-- 技术栈：Python / Streamlit / LangChain / Chroma / Embeddings / Qwen ChatModel
+一个基于 Streamlit、FastAPI、LangChain 和 Chroma 的轻量级知识库问答系统。项目已经从“单文件脚本组合”重构为分层架构，保留了原有的知识入库、RAG 检索问答和会话历史能力，同时补上了配置治理、API 接口、日志、测试和部署骨架。
 
----
+## 我对 `new.text` 的判断
 
-## ✨ 功能一览
+`new.text` 已经具备企业级开发的正确方向，但它本身还只是“企业级骨架”，并不等同于企业级落地。它的优点是：
 
-### 1) 知识库更新服务（Upload）
-- Streamlit 页面上传文件，显示基本格式
-- 自动读取文本内容
-- 根据配置进行分段（RecursiveCharacterTextSplitter）
-- 写入 Chroma 向量库（本地持久化）
-- 使用 **MD5 去重**：相同内容不重复入库
+- 明确了 `config / core / rag / services / api / web / tests` 的分层思路
+- 已经从脚本式开发转向模块化、可维护架构
+- 预留了测试、部署、文档、依赖分层这些企业项目常见要素
 
-### 2) 智能客服（RAG Chat）
-- Streamlit Chat UI
-- 显示历史消息（session_state）
-- LangChain 链式调用：`Retrieval -> Prompt -> LLM -> Output`
-- 支持 **流式输出**
-- 支持 **消息历史文件存储**（FileChatMessageHistory）
+它距离真正的企业级标准，还缺这些关键项：
 
-### 3) 效果预览（demo）
----
+- 配置治理：不仅要有目录，还要有统一加载、环境变量覆盖、密钥隔离
+- 依赖注入：不同入口应共享同一套服务，而不是各自 new 对象
+- 异常边界：上传、解码、模型调用、向量库操作需要清晰失败语义
+- 接口契约：API 请求/响应模型需要稳定定义
+- 可测试性：核心服务必须可脱离外部模型做单元测试
+- 运维能力：日志、中间件、初始化脚本、备份、部署说明要成体系
 
-- 本地知识库预存了衣物尺码推荐表、材质维护、穿衣搭配....
-- 对标电商（可自行更改符合个人需求）
+这次重构就是在 `new.text` 的目录标准之上，把这些缺口补成一个可运行的最小企业化版本。
 
----
-
-- 缓存用户对话信息精确回答
-
----
-
-## 🧩 项目结构（建议）
-
-> 如果你现在文件名不完全一致也没关系，但建议逐步整理成这种清晰结构...
+## 重构后的目录
 
 ```text
 Knowledge_Base_System/
-├─ app_upload.py                # 知识库上传服务（Streamlit）
-├─ app_chat.py                  # 智能客服（Streamlit）
-├─ rag.py                       # RagService：组装 RAG chain
-├─ vector_stores.py             # VectorStoreService：Chroma retriever 封装
-├─ konwledge_base.py            # KnowledgeBaseService：上传、切分、写库、去重
-├─ file_history_store.py        # FileChatMessageHistory：会话历史落盘
-├─ config_data.py               # 项目配置（模型名、路径、chunk 参数等）
-|
-├─ requirements.txt             # 依赖
-|
-├─ chroma_db/                   # Chroma 本地持久化目录（运行后生成）
-├─ chat_history/                # 聊天历史目录（运行后生成）
-└─ md5.text                     # 已入库内容的 md5 记录（运行后生成）
-
+├── app.py
+├── app_chat.py
+├── app_upload.py
+├── app_file_uploader.py          # 旧入口兼容
+├── app_qa.py                     # 旧入口兼容
+├── src/
+│   ├── config/
+│   ├── core/
+│   ├── rag/
+│   ├── services/
+│   ├── api/
+│   ├── models/
+│   ├── utils/
+│   └── web/
+├── tests/
+├── docs/
+├── requirements/
+├── scripts/
+├── docker/
+├── .env.example
+├── pyproject.toml
+└── README.md
 ```
----
-## ✅ 环境准备
 
+## 核心改造点
 
-### 1) 安装依赖
-> pip install -r requirements.txt
+### 1. 配置层统一
 
-- 终端运行，建议虚拟环境加载，自行添加清华镜像源加速
----
+- 使用 `src/config/settings.py` 统一加载 `config.yaml`
+- 支持通过环境变量覆盖核心配置
+- 将路径、模型、RAG 参数、日志、安全配置集中管理
 
-## ⚙️ 配置说明
+### 2. 业务逻辑分层
 
-- config_data.py 中包含核心配置，可手动修改模型配置、chunk大小...
-- 默认text-embedding-v4及qwen3-max
-- 注意，DashScope/通义千问相关的 API Key（例如 DASHSCOPE_API_KEY）需要系统环境变量中先行配置。
+- `src/services/document_service.py`：负责文件解码、预览、上传请求构造
+- `src/services/knowledge_service.py`：负责 MD5 去重、切分、写入向量库、统计
+- `src/services/chat_service.py`：负责问答编排与来源返回
+- `src/services/chat_history_service.py`：负责会话历史落盘
 
----
+### 3. 核心能力拆分
 
-## 🚀 快速运行
-### 1) 启动知识库上传服务
-> streamlit run app_upload.py
+- `src/core/embeddings.py`：嵌入模型工厂
+- `src/core/llm.py`：大模型工厂
+- `src/core/vector_store.py`：Chroma 向量库封装
+- `src/rag/chain.py`：RAG chain 组装
+- `src/rag/prompt.py`：提示词模板
 
-- 打开页面后上传 .txt 文件即可写入向量库。
+### 4. 双入口能力
 
-### 2) 启动智能客服（RAG Chat）
-> streamlit run app_chat.py
+- Streamlit Web：`app.py`、`app_upload.py`、`app_chat.py`
+- FastAPI：`src/api/app.py`
 
-- 输入问题后，会先检索知识库，再结合检索内容由模型生成回答（支持流式输出 | 历史记忆)
+### 5. 工程治理补齐
 
----
+- `tests/test_services.py`：补充服务层单元测试
+- `docs/ARCHITECTURE.md`：架构说明
+- `docs/API.md`：接口说明
+- `docs/DEPLOY.md`：部署说明
+- `scripts/init_db.py`、`scripts/backup.py`：初始化与备份脚本
+- `docker/`：容器化基础文件
 
-## 🛠 常见问题
+## 运行方式
 
-- Q1：为什么我上传文件后，聊天回答仍然像“没检索到资料”？
+### 1. 安装依赖
 
-- A: 向量库持久化目录不一致（upload 与 chat 指向不同 persist_directory）
+```bash
+pip install -r requirements/base.txt
+```
 
-- A: collection_name 不一致
-- A: 未根据路径，创建data来保存文件
+### 2. 配置环境变量
 
-- Q2：为什么我上传文件后，输出对话却迟迟不显示？
+至少需要：
 
-- A: 检索参数 k 太小，默认小于5，修改chunk大小
+```bash
+DASHSCOPE_API_KEY=your_key
+```
 
-- Q3: 为什么？.....
-- A: 需修改之处都是数据输出处，自行配置成本地环境即可！
+可以参考 `.env.example`。
 
----
-## ✨ 优化方向（仅供参考）
-- 采用深度rerank，可自行添加langchain框架中的EGE rerank模块，回答更精准
-- 页面优化：streamlit内置许多功能，可按需丰富UI
-- 思维链 -> 思维树 ？
-- 单模型 -> 多模型 ？ 比如豆包的多层推理架构，多模型混合输出？
-- TXT文本-> 多模态 ？
-- Chroma -> FAISS ?  这里采用轻量Chroma适合个人复现，FAISS的高效检索则适配企业
-- 待定...
-- 总之，这是一个基础但延展性很好的RAG项目,简单扩展 -> 企业级RAG -> ( 添加功能插件) -> Agent -> AI产品
+### 3. 初始化运行目录
 
----
+```bash
+python scripts/init_db.py
+```
 
----
+### 4. 启动 Streamlit
 
+统一入口：
+
+```bash
+streamlit run app.py
+```
+
+兼容旧入口：
+
+```bash
+streamlit run app_upload.py
+streamlit run app_chat.py
+```
+
+### 5. 启动 FastAPI
+
+```bash
+uvicorn src.api.app:app --reload
+```
+
+## API 概览
+
+- `GET /health`
+- `POST /api/documents/preview`
+- `GET /api/knowledge/stats`
+- `POST /api/knowledge/upload`
+- `POST /api/chat`
+
+## 当前这一版离“真正企业级”还差什么
+
+这次重构已经达到“企业级开发的最小可维护标准”，但还没有到大型生产系统的完整成熟度。下一阶段建议继续补：
+
+- 数据库级元数据管理，而不是仅依赖 `md5.text`
+- 更完整的权限体系和用户体系
+- 统一 observability：trace、metrics、告警
+- 更强的测试体系：API 集成测试、RAG 回归测试、性能测试
+- 多文档格式解析、异步任务队列、重试与熔断
+- CI/CD 与镜像发布流程
+
+## 兼容性说明
+
+为了避免你原来的运行方式失效，根目录下旧文件名依然保留，但它们现在只是兼容层，核心逻辑已经全部迁移到 `src/`。

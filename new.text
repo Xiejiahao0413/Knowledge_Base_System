@@ -1,0 +1,72 @@
+Knowledge_Base_System/
+├── src/                          # 源代码
+│   ├── __init__.py
+│   ├── config/                   # 配置管理
+│   │   ├── __init__.py
+│   │   ├── settings.py          # 配置类（Pydantic Settings）
+│   │   ├── config.yaml          # 配置文件
+│   │   └── logging_config.py    # 日志配置
+│   ├── core/                     # 核心业务
+│   │   ├── __init__.py
+│   │   ├── embeddings.py        # 嵌入模型封装
+│   │   ├── llm.py               # 大模型封装
+│   │   └── vector_store.py      # 向量库封装
+│   ├── rag/                      # RAG核心
+│   │   ├── __init__.py
+│   │   ├── chain.py             # RAG链构建
+│   │   ├── retriever.py         # 检索器增强
+│   │   └── prompt.py            # 提示词模板
+│   ├── services/                 # 业务服务层
+│   │   ├── __init__.py
+│   │   ├── document_service.py  # 文档管理
+│   │   ├── chat_service.py      # 对话服务
+│   │   └── knowledge_service.py # 知识库服务
+│   ├── api/                      # API接口层
+│   │   ├── __init__.py
+│   │   ├── routes/              # 路由
+│   │   │   ├── chat.py
+│   │   │   ├── documents.py
+│   │   │   └── knowledge.py
+│   │   └── middleware/          # 中间件
+│   │       ├── auth.py
+│   │       └── logging.py
+│   ├── models/                   # 数据模型
+│   │   ├── __init__.py
+│   │   ├── document.py
+│   │   ├── chat.py
+│   │   └── schemas.py           # Pydantic schemas
+│   ├── utils/                    # 工具类
+│   │   ├── __init__.py
+│   │   ├── logger.py            # 日志工具
+│   │   ├── exceptions.py        # 自定义异常
+│   │   └── helpers.py           # 辅助函数
+│   └── web/                      # Web界面（Streamlit）
+│       ├── __init__.py
+│       ├── app.py
+│       ├── pages/
+│       └── components/
+├── tests/                        # 单元测试
+│   ├── __init__.py
+│   ├── test_rag.py
+│   ├── test_services.py
+│   └── conftest.py
+├── docker/                       # Docker配置
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── .dockerignore
+├── scripts/                      # 运维脚本
+│   ├── init_db.py
+│   ├── backup.py
+│   └── deploy.sh
+├── docs/                         # 文档
+│   ├── API.md
+│   ├── DEPLOY.md
+│   └── ARCHITECTURE.md
+├── requirements/
+│   ├── base.txt
+│   ├── dev.txt
+│   └── prod.txt
+├── .env.example                  # 环境变量模板
+├── .gitignore
+├── pyproject.toml                # 项目配置
+└── README.md

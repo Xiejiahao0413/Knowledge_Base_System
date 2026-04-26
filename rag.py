@@ -1,102 +1,33 @@
-from vector_stores import  VectorStoreService
-from langchain_community.embeddings import DashScopeEmbeddings
-import config_data as config
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_community.chat_models import ChatTongyi 
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
-from file_history_store import get_history
-from langchain_core.runnables import RunnableLambda
-from langchain_core.runnables.history import RunnableWithMessageHistory
+"""Legacy compatibility wrapper around the refactored chat service."""
 
-def print_prompt(prompt):
-    print("="*20)
-    print(prompt.to_string())
-    print("="*20)
+from src.bootstrap import get_chat_service
 
-    return prompt
 
-class RagService(object):
+class _LegacyChainAdapter:
+    def __init__(self, chat_service):
+        self.chat_service = chat_service
 
+    def stream(self, payload: dict, config: dict | None = None):
+        session_id = _extract_session_id(config)
+        return self.chat_service.stream_answer(payload["input"], session_id=session_id)
+
+    def invoke(self, payload: dict, config: dict | None = None):
+        session_id = _extract_session_id(config)
+        response = self.chat_service.ask(payload["input"], session_id=session_id)
+        return response.answer
+
+
+def _extract_session_id(config: dict | None) -> str | None:
+    if not config:
+        return None
+    configurable = config.get("configurable", {})
+    return configurable.get("session_id")
+
+
+class RagService:
     def __init__(self):
+        self.chat_service = get_chat_service()
+        self.chain = _LegacyChainAdapter(self.chat_service)
 
-        self.vector_service = VectorStoreService(
-            embedding=DashScopeEmbeddings(model=config.embedding_model_name)
-        )
-
-        self.prompt_template = ChatPromptTemplate.from_messages(
-            [
-                ("system","以我提供的已知参考资料为主，简介和专业的回答用户问题，参考资料：{context}\n\n并且我提供用户的对话历史记录，如下："),
-                MessagesPlaceholder("history"),
-                ("user","请回答用户提问:{input}")
-            ]
-        )
-
-        self.chat_model = ChatTongyi(model=config.chat_model_name)
-
-        self.chain = self.__get_chain()
-
-
-    def __get_chain(self):
-        """获取最终的执行链"""
-        retriever = self.vector_service.get_retriever()
-
-        def format_document(docs:list[Document]):
-            if not docs:
-                return "无相关参考资料"
-            
-            formatted_str = ""
-            for doc in docs:
-                formatted_str += f"文档片段:{doc.page_content}\n文档元数据:{doc.metadata}\n\n"
-            
-            return formatted_str
-        
-        def format_for_retriever(value:dict) ->str:
-            return value["input"]
-        
-        def format_for_template(value):
-            #{input,context,history}
-            new_value={}
-            new_value["input"] = value["input"]["input"]
-            new_value["context"] = value["context"]
-            new_value["history"] = value["input"]["history"]
-            return new_value
-
-        
-        chain = (
-            {
-                "input":RunnablePassthrough(),
-                "context": RunnableLambda(format_for_retriever) | retriever | format_document
-            }
-            | RunnableLambda(format_for_template)
-            | self.prompt_template
-            | print_prompt
-            | self.chat_model
-            | StrOutputParser()
-        
-        )
-
-        #增强链
-        conversation_chain = RunnableWithMessageHistory(
-            chain,
-            get_history,
-            input_messages_key = "input",
-            history_messages_key = "history",
-
-        )
-
-        return conversation_chain
-    
-if __name__ == '__main__':
-    #session_id
-    session_config = {
-        "configurable":{
-            "session_id":"user_001",
-        }
-    }
-    res = RagService().chain.invoke(
-        {"input": "春天穿什么颜色的衣服"},session_config)
-
-    print(res)
-        
+    def ask(self, question: str, session_id: str | None = None):
+        return self.chat_service.ask(question=question, session_id=session_id)

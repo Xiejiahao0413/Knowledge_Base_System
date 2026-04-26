@@ -1,29 +1,17 @@
-md5_path = "./md5.text"
+"""Legacy compatibility module for the refactored settings layer."""
 
+from src.config.settings import get_settings
 
-#Chroma
-collection_name = "rag"
-#persist_directory = "./chroma_db"
-import os
-persist_directory = os.path.join(os.path.dirname(__file__), "chroma_db")
+_settings = get_settings()
 
-#spliter
-chunk_size = 1000
-chunk_overlap = 100
-separators = ["\n\n","\n",",",".","?","!","，","。","！","？",""]
-max_split_char_number = 1000    #文本分割阈值
-
-
-similary_thredshold = 2    #返回的文件数量
-
-embedding_model_name = "text-embedding-v4"
-chat_model_name = "qwen3-max"
-
-
-session_config = {
-        "configurable":{
-            "session_id":"user_001",
-        }
-    }
-
-
+md5_path = str(_settings.md5_registry_path)
+collection_name = _settings.rag.collection_name
+persist_directory = str(_settings.chroma_db_path)
+chunk_size = _settings.rag.chunk_size
+chunk_overlap = _settings.rag.chunk_overlap
+separators = _settings.rag.separators
+max_split_char_number = _settings.rag.max_split_char_number
+similary_thredshold = _settings.rag.retrieval_k
+embedding_model_name = _settings.models.embedding
+chat_model_name = _settings.models.chat
+session_config = _settings.session_config()

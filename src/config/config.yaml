@@ -1,0 +1,45 @@
+app:
+  name: Knowledge Base System
+  environment: development
+
+paths:
+  chroma_db: chroma_db
+  chat_history: chat_history
+  data: data
+  md5_registry: md5.text
+  logs_dir: logs
+
+logging:
+  level: INFO
+  file_name: app.log
+
+models:
+  embedding: text-embedding-v4
+  chat: qwen3-max
+
+rag:
+  collection_name: rag
+  chunk_size: 1000
+  chunk_overlap: 100
+  max_split_char_number: 1000
+  retrieval_k: 2
+  separators:
+    - "\n\n"
+    - "\n"
+    - ","
+    - "."
+    - "?"
+    - "!"
+    - "，"
+    - "。"
+    - "！"
+    - "？"
+    - ""
+
+session:
+  default_session_id: user_001
+
+security:
+  api_key_header: X-API-Key
+  api_key: null
+

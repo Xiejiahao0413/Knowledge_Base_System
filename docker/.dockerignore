@@ -1,0 +1,7 @@
+venvknowledgebasesystem
+__pycache__
+.git
+chroma_db
+chat_history
+logs
+

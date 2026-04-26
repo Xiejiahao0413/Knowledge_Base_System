@@ -1,0 +1,11 @@
+venvknowledgebasesystem/
+__pycache__/
+.pytest_cache/
+.env
+logs/
+backups/
+.backup_tmp/
+tests/.tmp/
+chroma_db/
+chat_history/
+*.pyc
